@@ -124,3 +124,26 @@ func (c *AWSConfig) CpS3file(key string, bucket string, dest string, debug bool)
 	fmt.Println("")
 	return nil
 }
+
+func BreakOnError(err error) {
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Terminating error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func CompleteArgs(args []string, region string) (result []string) {
+	c := NewAWSConfig(region)
+	switch len(args) {
+	case 0:
+		result, _ = c.ListS3()
+		return
+
+	case 1:
+		result, _ = c.ListS3Objects(args[0], "")
+		return
+
+	default:
+		return nil
+	}
+}

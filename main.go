@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	if err := cmd.S3dirCMD.Execute(); err != nil {
+	if err := cmd.S3CommanderCMD.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
