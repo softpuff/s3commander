@@ -14,6 +14,7 @@ var prefix string
 var key string
 var debug bool
 var dest string
+var print bool
 
 var (
 	S3CommanderCMD = &cobra.Command{
@@ -24,9 +25,10 @@ var (
 
 var (
 	lsCMD = &cobra.Command{
-		Use:   "ls",
-		Short: "list objects in bucket",
-		Args:  cobra.MaximumNArgs(2),
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "list objects in bucket",
+		Args:    cobra.MaximumNArgs(2),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			result := helpers.CompleteArgs(args, region)
 			return result, cobra.ShellCompDirectiveNoFileComp
@@ -58,6 +60,9 @@ var (
 
 			for _, o := range objs {
 				fmt.Println(o)
+				if print {
+					c.PrintS3File(args[0], o)
+				}
 			}
 
 		},
@@ -120,6 +125,7 @@ func init() {
 	cpCMD.Flags().StringVarP(&key, "key", "f", "", "key to copy from s3")
 	cpCMD.Flags().StringVarP(&bucket, "bucket", "b", "", "bucket name")
 	cpCMD.Flags().StringVarP(&dest, "destination", "d", "", "destination folder for s3 file")
+	lsCMD.Flags().BoolVarP(&print, "print", "p", false, "print list results")
 	S3CommanderCMD.AddCommand(cpCMD)
 	S3CommanderCMD.AddCommand(printCMD)
 
