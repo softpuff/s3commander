@@ -14,11 +14,25 @@ type AWSConfig struct {
 	Region  *string
 }
 
-func NewAWSConfig(region string) (c AWSConfig) {
+type AWSOptions func(*AWSConfig)
+
+func WithRegion(region string) AWSOptions {
+	return func(a *AWSConfig) {
+		a.Region = &region
+	}
+}
+
+func NewAWSConfig(opts ...AWSOptions) (c *AWSConfig) {
+	region := "us-west-2"
+
 	c.Region = &region
 	c.Session = session.Must(session.NewSession(&aws.Config{
 		Region: c.Region,
 	}))
+
+	for _, opt := range opts {
+		opt(c)
+	}
 	return c
 }
 

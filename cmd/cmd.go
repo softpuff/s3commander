@@ -37,7 +37,7 @@ var (
 			region, err := getRegion(region)
 			helpers.BreakOnError(err)
 
-			c := helpers.NewAWSConfig(region)
+			c := helpers.NewAWSConfig(helpers.WithRegion(region))
 
 			if len(args) == 0 {
 				buckets, err := c.ListS3()
@@ -77,7 +77,7 @@ var (
 			region, err := getRegion(region)
 			helpers.BreakOnError(err)
 
-			c := helpers.NewAWSConfig(region)
+			c := helpers.NewAWSConfig(helpers.WithRegion(region))
 
 			err = c.CpS3file(key, bucket, dest, debug)
 			helpers.BreakOnError(err)
@@ -100,7 +100,7 @@ var (
 			region, err := getRegion(region)
 			helpers.BreakOnError(err)
 
-			c := helpers.NewAWSConfig(region)
+			c := helpers.NewAWSConfig(helpers.WithRegion(region))
 			err = c.PrintS3File(args[0], args[1])
 			helpers.BreakOnError(err)
 		},
@@ -134,7 +134,7 @@ func init() {
 func getRegion(region string) (string, error) {
 	reg := os.Getenv("AWS_REGION")
 	if reg == "" && region == "" {
-		return "", fmt.Errorf("No region")
+		return "", fmt.Errorf("no region")
 	}
 	return reg, nil
 }

@@ -133,7 +133,7 @@ func BreakOnError(err error) {
 }
 
 func CompleteArgs(args []string, region string) (result []string) {
-	c := NewAWSConfig(region)
+	c := NewAWSConfig(WithRegion(region))
 	switch len(args) {
 	case 0:
 		result, _ = c.ListS3()
