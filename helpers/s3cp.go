@@ -140,7 +140,7 @@ func CompleteArgs(args []string, region string) (result []string) {
 		return
 
 	case 1:
-		result, _ = c.ListS3Objects(args[0], "")
+		result, _ = c.ListS3Objects(args[0], "", false)
 		return
 
 	default:

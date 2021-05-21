@@ -8,13 +8,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var region string
-var bucket string
-var prefix string
-var key string
-var debug bool
-var dest string
-var print bool
+var (
+	region     string
+	bucket     string
+	prefix     string
+	key        string
+	debug      bool
+	dest       string
+	print      bool
+	all        bool
+	expression string
+)
 
 var (
 	S3CommanderCMD = &cobra.Command{
@@ -55,7 +59,7 @@ var (
 			} else {
 				prefix = args[1]
 			}
-			objs, err := c.ListS3Objects(args[0], prefix)
+			objs, err := c.ListS3Objects(args[0], prefix, all)
 			helpers.BreakOnError(err)
 
 			for _, o := range objs {
@@ -108,6 +112,29 @@ var (
 )
 
 var (
+	selectCMD = &cobra.Command{
+
+		Use:   "select",
+		Short: "invoke query on s3 object",
+		Args:  cobra.ExactArgs(2),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			result := helpers.CompleteArgs(args, region)
+
+			return result, cobra.ShellCompDirectiveDefault
+		},
+		Run: func(cmd *cobra.Command, args []string) {
+			region, err := getRegion(region)
+			helpers.BreakOnError(err)
+
+			c := helpers.NewAWSConfig(helpers.WithRegion(region))
+			err = c.CountS3ObjectLines(args[0], args[1], expression)
+			helpers.BreakOnError(err)
+
+		},
+	}
+)
+
+var (
 	completionCmd = &cobra.Command{
 		Use:   "completion",
 		Short: "Generates bash completion script",
@@ -126,8 +153,11 @@ func init() {
 	cpCMD.Flags().StringVarP(&bucket, "bucket", "b", "", "bucket name")
 	cpCMD.Flags().StringVarP(&dest, "destination", "d", "", "destination folder for s3 file")
 	lsCMD.Flags().BoolVarP(&print, "print", "p", false, "print list results")
+	lsCMD.Flags().BoolVarP(&all, "all", "A", false, "return all results, not just first 1000")
+	selectCMD.Flags().StringVarP(&expression, "expression", "E", "", "SQL expression to invoke on s3 object")
 	S3CommanderCMD.AddCommand(cpCMD)
 	S3CommanderCMD.AddCommand(printCMD)
+	S3CommanderCMD.AddCommand(selectCMD)
 
 }
 

@@ -11,28 +11,29 @@ import (
 
 type AWSConfig struct {
 	Session *session.Session
-	Region  *string
+	Region  string
 }
 
 type AWSOptions func(*AWSConfig)
 
 func WithRegion(region string) AWSOptions {
 	return func(a *AWSConfig) {
-		a.Region = &region
+		a.Region = region
+		a.Session = session.Must(session.NewSession(&aws.Config{
+			Region: &region,
+		}))
+
 	}
 }
 
-func NewAWSConfig(opts ...AWSOptions) (c *AWSConfig) {
-	region := "us-west-2"
+func NewAWSConfig(opts ...AWSOptions) *AWSConfig {
 
-	c.Region = &region
-	c.Session = session.Must(session.NewSession(&aws.Config{
-		Region: c.Region,
-	}))
+	c := &AWSConfig{}
 
 	for _, opt := range opts {
 		opt(c)
 	}
+
 	return c
 }
 
@@ -41,7 +42,7 @@ func (c *AWSConfig) ListS3() (buckets []string, err error) {
 
 	result, err := svc.ListBuckets(nil)
 	if err != nil {
-		return nil, fmt.Errorf("Creating bucker err: %v\n", err)
+		return nil, fmt.Errorf("creating bucker err: %v", err)
 	}
 
 	for _, b := range result.Buckets {
@@ -51,16 +52,20 @@ func (c *AWSConfig) ListS3() (buckets []string, err error) {
 	return
 }
 
-func (c *AWSConfig) ListS3Objects(b string, prefix string) (object []string, err error) {
+func (c *AWSConfig) ListS3Objects(b, prefix string, all bool) (object []string, err error) {
 	svc := s3.New(c.Session)
+
+	var result *s3.ListObjectsV2Output
 
 	input := s3.ListObjectsV2Input{
 		Bucket: &b,
 	}
+
 	if prefix != "" {
 		input.Prefix = &prefix
 	}
-	result, err := svc.ListObjectsV2(&input)
+
+	result, err = svc.ListObjectsV2(&input)
 	if err != nil {
 		return
 	}
@@ -68,10 +73,29 @@ func (c *AWSConfig) ListS3Objects(b string, prefix string) (object []string, err
 	for _, obj := range result.Contents {
 		object = append(object, *obj.Key)
 	}
+
+	if all {
+
+		for *result.IsTruncated {
+
+			input.ContinuationToken = result.NextContinuationToken
+
+			result, err = svc.ListObjectsV2(&input)
+			if err != nil {
+				return
+			}
+
+			for _, obj := range result.Contents {
+				object = append(object, *obj.Key)
+			}
+
+		}
+	}
+
 	return
 }
 
-func (c *AWSConfig) PrintS3File(bucket string, key string) error {
+func (c *AWSConfig) PrintS3File(bucket, key string) error {
 	dl := s3manager.NewDownloader(c.Session)
 
 	params := &s3.GetObjectInput{
