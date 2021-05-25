@@ -10,11 +10,8 @@ import (
 
 var (
 	region     string
-	bucket     string
 	prefix     string
-	key        string
 	debug      bool
-	dest       string
 	print      bool
 	all        bool
 	expression string
@@ -34,8 +31,8 @@ var (
 		Short:   "list objects in bucket",
 		Args:    cobra.MaximumNArgs(2),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			result := helpers.CompleteArgs(args, region)
-			return result, cobra.ShellCompDirectiveNoFileComp
+			result, direct := CompleteArgs(args, region)
+			return result, direct
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			region, err := getRegion(region)
@@ -75,15 +72,21 @@ var (
 
 var (
 	cpCMD = &cobra.Command{
-		Use:   "cp",
+		Use:   "cp [BUCKET] [KEY] [DESTINATION]",
 		Short: "cp filename location",
+		Args:  cobra.ExactArgs(3),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			result, direct := CompleteArgs(args, region)
+
+			return result, direct
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			region, err := getRegion(region)
 			helpers.BreakOnError(err)
 
 			c := helpers.NewAWSConfig(helpers.WithRegion(region))
 
-			err = c.CpS3file(key, bucket, dest, debug)
+			err = c.CpS3file(args[1], args[0], args[2], debug)
 			helpers.BreakOnError(err)
 
 		},
@@ -96,9 +99,9 @@ var (
 		Short: "print s3 file",
 		Args:  cobra.ExactArgs(2),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			result := helpers.CompleteArgs(args, region)
+			result, direct := CompleteArgs(args, region)
 
-			return result, cobra.ShellCompDirectiveDefault
+			return result, direct
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			region, err := getRegion(region)
@@ -118,9 +121,9 @@ var (
 		Short: "invoke query on s3 object",
 		Args:  cobra.ExactArgs(2),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			result := helpers.CompleteArgs(args, region)
+			result, direct := CompleteArgs(args, region)
 
-			return result, cobra.ShellCompDirectiveDefault
+			return result, direct
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			region, err := getRegion(region)
@@ -149,9 +152,6 @@ func init() {
 	S3CommanderCMD.PersistentFlags().BoolVarP(&debug, "debug", "g", false, "debug output")
 	S3CommanderCMD.AddCommand(completionCmd)
 	S3CommanderCMD.AddCommand(lsCMD)
-	cpCMD.Flags().StringVarP(&key, "key", "f", "", "key to copy from s3")
-	cpCMD.Flags().StringVarP(&bucket, "bucket", "b", "", "bucket name")
-	cpCMD.Flags().StringVarP(&dest, "destination", "d", "", "destination folder for s3 file")
 	lsCMD.Flags().BoolVarP(&print, "print", "p", false, "print list results")
 	lsCMD.Flags().BoolVarP(&all, "all", "A", false, "return all results, not just first 1000")
 	selectCMD.Flags().StringVarP(&expression, "expression", "E", "", "SQL expression to invoke on s3 object")
@@ -167,4 +167,23 @@ func getRegion(region string) (string, error) {
 		return "", fmt.Errorf("no region")
 	}
 	return reg, nil
+}
+
+func CompleteArgs(args []string, region string) (result []string, direct cobra.ShellCompDirective) {
+	c := helpers.NewAWSConfig(helpers.WithRegion(region))
+	direct = cobra.ShellCompDirectiveNoFileComp
+	switch len(args) {
+	case 0:
+		result, _ = c.ListS3()
+
+		return
+
+	case 1:
+		result, _ = c.ListS3Objects(args[0], "", false)
+		return
+
+	default:
+		direct = cobra.ShellCompDirectiveDefault
+		return
+	}
 }

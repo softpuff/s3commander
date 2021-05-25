@@ -131,19 +131,3 @@ func BreakOnError(err error) {
 		os.Exit(1)
 	}
 }
-
-func CompleteArgs(args []string, region string) (result []string) {
-	c := NewAWSConfig(WithRegion(region))
-	switch len(args) {
-	case 0:
-		result, _ = c.ListS3()
-		return
-
-	case 1:
-		result, _ = c.ListS3Objects(args[0], "", false)
-		return
-
-	default:
-		return nil
-	}
-}
