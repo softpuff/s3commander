@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	Version     string = "v0.0.0"
 	region      string
 	prefix      string
 	debug       bool
@@ -24,6 +25,16 @@ var (
 	S3CommanderCMD = &cobra.Command{
 		Use:   "s3commander [subcommand]",
 		Short: "List s3 buckets",
+	}
+)
+
+var (
+	versionCMD = &cobra.Command{
+		Use:   "version",
+		Short: "show version",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("Version: %s\n", Version)
+		},
 	}
 )
 
@@ -210,6 +221,7 @@ func init() {
 	S3CommanderCMD.AddCommand(printCMD)
 	S3CommanderCMD.AddCommand(selectCMD)
 	S3CommanderCMD.AddCommand(listVersionsCMD)
+	S3CommanderCMD.AddCommand(versionCMD)
 
 	cpCMD.RegisterFlagCompletionFunc("version", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 2 {
