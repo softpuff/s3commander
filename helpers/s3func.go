@@ -95,13 +95,10 @@ func (c *AWSConfig) ListS3Objects(b, prefix string, all bool) (object []string, 
 	return
 }
 
-func (c *AWSConfig) PrintS3File(bucket, key string) error {
+func (c *AWSConfig) PrintS3File(bucket, key, version string) error {
 	dl := s3manager.NewDownloader(c.Session)
 
-	params := &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-	}
+	params := createInput(bucket, key, version)
 
 	var buf []byte
 	awsBuf := aws.NewWriteAtBuffer(buf)

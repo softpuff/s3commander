@@ -43,15 +43,19 @@ func byteCountDecimal(b int64) string {
 	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "kMGTPE"[exp])
 }
 
-func GetFileSize(svc *s3.S3, bucket string, prefix string) (filesize int64, err error) {
+func GetFileSize(svc *s3.S3, bucket, prefix, version string) (filesize int64, err error) {
 	params := &s3.HeadObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(prefix),
 	}
 
+	if version != "" {
+		params.VersionId = &version
+	}
+
 	resp, err := svc.HeadObject(params)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("error getting fileSize %s: %v", prefix, err)
 	}
 
 	return *resp.ContentLength, nil
@@ -63,14 +67,16 @@ func parseFileName(key string) (filename string) {
 	return s
 }
 
-func (c *AWSConfig) CpS3file(key string, bucket string, dest string, debug bool) error {
+func (c *AWSConfig) CpS3file(key, bucket, dest, version string, debug bool) error {
 	filename := parseFileName(key)
 	if debug {
 		fmt.Printf("Filename: %s\n", filename)
+		fmt.Printf("Bucket name: %s\n", bucket)
+		fmt.Printf("Version: %s\n", version)
 	}
 	s3Client := s3.New(c.Session)
 	downloader := s3manager.NewDownloader(c.Session)
-	size, err := GetFileSize(s3Client, bucket, key)
+	size, err := GetFileSize(s3Client, bucket, key, version)
 	if err != nil {
 		return err
 	}
@@ -103,10 +109,7 @@ func (c *AWSConfig) CpS3file(key string, bucket string, dest string, debug bool)
 		size:    size,
 		written: 0,
 	}
-	params := &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-	}
+	params := createInput(bucket, key, version)
 
 	if _, err := downloader.Download(writer, params); err != nil {
 		fmt.Fprintf(os.Stderr, "Download failed! Deleting tempfile %s", tempfile)
@@ -130,4 +133,15 @@ func BreakOnError(err error) {
 		fmt.Fprintf(os.Stderr, "Terminating error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func createInput(bucket, key, version string) *s3.GetObjectInput {
+	input := &s3.GetObjectInput{
+		Bucket: &bucket,
+		Key:    &key,
+	}
+	if version != "" {
+		input.VersionId = &version
+	}
+	return input
 }

@@ -9,12 +9,15 @@ import (
 )
 
 var (
-	region     string
-	prefix     string
-	debug      bool
-	print      bool
-	all        bool
-	expression string
+	region      string
+	prefix      string
+	debug       bool
+	print       bool
+	all         bool
+	expression  string
+	showVersion bool
+	version     string
+	verbose     bool
 )
 
 var (
@@ -59,11 +62,30 @@ var (
 			objs, err := c.ListS3Objects(args[0], prefix, all)
 			helpers.BreakOnError(err)
 
+			if showVersion {
+				for _, o := range objs {
+
+					versions, err := c.GetVersions(args[0], o)
+					helpers.BreakOnError(err)
+
+					if verbose {
+						for _, v := range versions {
+							fmt.Println(v)
+						}
+					} else {
+						for _, v := range versions {
+							fmt.Println(*v.VersionId)
+						}
+					}
+				}
+				return
+			}
 			for _, o := range objs {
 				fmt.Println(o)
 				if print {
-					c.PrintS3File(args[0], o)
+					c.PrintS3File(args[0], o, version)
 				}
+
 			}
 
 		},
@@ -86,7 +108,7 @@ var (
 
 			c := helpers.NewAWSConfig(helpers.WithRegion(region))
 
-			err = c.CpS3file(args[1], args[0], args[2], debug)
+			err = c.CpS3file(args[1], args[0], args[2], version, debug)
 			helpers.BreakOnError(err)
 
 		},
@@ -108,7 +130,7 @@ var (
 			helpers.BreakOnError(err)
 
 			c := helpers.NewAWSConfig(helpers.WithRegion(region))
-			err = c.PrintS3File(args[0], args[1])
+			err = c.PrintS3File(args[0], args[1], version)
 			helpers.BreakOnError(err)
 		},
 	}
@@ -138,6 +160,31 @@ var (
 )
 
 var (
+	listVersionsCMD = &cobra.Command{
+		Use:   "list-versions",
+		Short: "list versions of object",
+		Args:  cobra.ExactArgs(2),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return CompleteArgs(args, region)
+		},
+		Run: func(cmd *cobra.Command, args []string) {
+			region, err := getRegion(region)
+			helpers.BreakOnError(err)
+
+			c := helpers.NewAWSConfig(helpers.WithRegion(region))
+			result, err := c.GetVersions(args[0], args[1])
+			helpers.BreakOnError(err)
+
+			vers := helpers.GetObjectVersions(result)
+
+			for _, v := range vers {
+				fmt.Println(v)
+			}
+		},
+	}
+)
+
+var (
 	completionCmd = &cobra.Command{
 		Use:   "completion",
 		Short: "Generates bash completion script",
@@ -150,15 +197,62 @@ var (
 func init() {
 	S3CommanderCMD.PersistentFlags().StringVarP(&region, "region", "r", "", "AWS region")
 	S3CommanderCMD.PersistentFlags().BoolVarP(&debug, "debug", "g", false, "debug output")
+	S3CommanderCMD.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 	S3CommanderCMD.AddCommand(completionCmd)
 	S3CommanderCMD.AddCommand(lsCMD)
 	lsCMD.Flags().BoolVarP(&print, "print", "p", false, "print list results")
 	lsCMD.Flags().BoolVarP(&all, "all", "A", false, "return all results, not just first 1000")
+	lsCMD.Flags().BoolVarP(&showVersion, "show-version", "V", false, "show versions of s3 objects")
+	cpCMD.Flags().StringVarP(&version, "version", "", "", "version of s3 object to print")
+	printCMD.Flags().StringVarP(&version, "version", "", "", "version of s3 object to print")
 	selectCMD.Flags().StringVarP(&expression, "expression", "E", "", "SQL expression to invoke on s3 object")
 	S3CommanderCMD.AddCommand(cpCMD)
 	S3CommanderCMD.AddCommand(printCMD)
 	S3CommanderCMD.AddCommand(selectCMD)
+	S3CommanderCMD.AddCommand(listVersionsCMD)
 
+	cpCMD.RegisterFlagCompletionFunc("version", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 2 {
+			bucket := args[0]
+			key := args[1]
+
+			region, err := getRegion(region)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			c := helpers.NewAWSConfig(helpers.WithRegion(region))
+			vers, err := c.GetVersions(bucket, key)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return helpers.GetObjectVersionsIDs(vers), cobra.ShellCompDirectiveDefault
+
+		} else {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+	})
+	printCMD.RegisterFlagCompletionFunc("version", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 2 {
+			bucket := args[0]
+			key := args[1]
+
+			region, err := getRegion(region)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			c := helpers.NewAWSConfig(helpers.WithRegion(region))
+			vers, err := c.GetVersions(bucket, key)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return helpers.GetObjectVersionsIDs(vers), cobra.ShellCompDirectiveDefault
+
+		} else {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+	})
 }
 
 func getRegion(region string) (string, error) {
