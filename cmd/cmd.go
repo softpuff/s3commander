@@ -196,6 +196,25 @@ var (
 )
 
 var (
+	credsCMD = &cobra.Command{
+		Use:   "creds",
+		Short: "show creds that are being used",
+		Run: func(cmd *cobra.Command, args []string) {
+			region, err := getRegion(region)
+			helpers.BreakOnError(err)
+
+			c := helpers.NewAWSConfig(helpers.WithRegion(region))
+			creds, err := c.Session.Config.Credentials.Get()
+			helpers.BreakOnError(err)
+
+			fmt.Printf("AccesKeyId: %s\n", creds.AccessKeyID)
+			fmt.Printf("SecretAccessKey: %s\n", creds.SecretAccessKey)
+			fmt.Printf("Provider: %s\n", creds.ProviderName)
+		},
+	}
+)
+
+var (
 	completionCmd = &cobra.Command{
 		Use:   "completion",
 		Short: "Generates bash completion script",
@@ -222,6 +241,7 @@ func init() {
 	S3CommanderCMD.AddCommand(selectCMD)
 	S3CommanderCMD.AddCommand(listVersionsCMD)
 	S3CommanderCMD.AddCommand(versionCMD)
+	S3CommanderCMD.AddCommand(credsCMD)
 
 	cpCMD.RegisterFlagCompletionFunc("version", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 2 {
