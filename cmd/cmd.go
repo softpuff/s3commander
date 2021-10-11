@@ -288,11 +288,15 @@ func init() {
 }
 
 func getRegion(region string) (string, error) {
-	reg := os.Getenv("AWS_REGION")
-	if reg == "" && region == "" {
-		return "", fmt.Errorf("no region")
+	reg, ok := os.LookupEnv("AWS_REGION")
+
+	if region != "" {
+		return region, nil
 	}
-	return reg, nil
+	if ok {
+		return reg, nil
+	}
+	return "", fmt.Errorf("no region")
 }
 
 func CompleteArgs(args []string, region string) (result []string, direct cobra.ShellCompDirective) {
